@@ -26,25 +26,25 @@ bool isSpirvMagicNumberValid(const char *buffer, size_t size) {
     return magicNumber == spirvMagicNumber;
 }
 
-}
+} 
 
 extern "C" std::unique_ptr<ITranslator_Result> generateBitcode(const char *spirvBuffer, size_t spirvSize) {
     if (!spirvBuffer || spirvSize < 4) {
-        return std::make_unique<ITranslator_Result>("", "Invalid input: SPIR-V buffer is null or size is too small.");
+        return std::make_unique<ITranslator_Result>("", "Invalid SPIR-V buffer: null or size is too small.");
     }
 
     if (!isSpirvMagicNumberValid(spirvBuffer, spirvSize)) {
-        return std::make_unique<ITranslator_Result>("", "Invalid SPIR-V buffer: does not match SPIR-V magic number.");
+        return std::make_unique<ITranslator_Result>("", "Invalid SPIR-V buffer: incorrect magic number.");
     }
 
     StringRef spirvRef(spirvBuffer, spirvSize);
-    raw_string_ostream errorsStream(errors);
-
     LLVMContext context;
     std::unique_ptr<Module> module;
+    std::string errors;
 
-    if (!readSpirv(context, spirvRef, module, errors)) {
-        return std::make_unique<ITranslator_Result>("", errorsStream.str());
+    auto result = readSpirv(context, spirvRef, module, errors);
+    if (!result) {
+        return std::make_unique<ITranslator_Result>("", errors.empty() ? "Failed to parse SPIR-V." : errors);
     }
 
     if (!module) {
@@ -59,5 +59,5 @@ extern "C" std::unique_ptr<ITranslator_Result> generateBitcode(const char *spirv
         bitcodeStream.flush();
     }
 
-    return std::make_unique<ITranslator_Result>(std::move(bitcode), std::move(errorsStream.str()));
+    return std::make_unique<ITranslator_Result>(std::move(bitcode), std::move(errors));
 }
