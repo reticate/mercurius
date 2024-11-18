@@ -1,11 +1,10 @@
-#include "translator-wrapper.h"
+#include "wrapper.h"
 
 #include "llvm/IR/Module.h"
 #include "LLVMSPIRVLib.h"
 
 #include <cstdint>
 #include <string>
-#include <sstream>
 #include <memory>
 
 using namespace llvm;
@@ -18,7 +17,6 @@ bool IsValidSpirv(const char *buffer, size_t size) {
     constexpr uint32_t spirvMagicNumber = 0x07230203;
     uint32_t magicNumber = *reinterpret_cast<const uint32_t *>(buffer);
 
-    // SPIR-V is little-endian; swap bytes if the host is big-endian
     #if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
     magicNumber = __builtin_bswap32(magicNumber);
     #endif
@@ -35,14 +33,13 @@ extern "C" ITranslator_Result *generateBitcode(const char *spirvBuffer, size_t s
         return new ITranslator_Result("", "Invalid SPIR-V buffer: does not match SPIR-V magic number.");
     }
 
-    std::string spirvBufferCopy(spirvBuffer, spirvSize);
-    std::istringstream spirvStream(spirvBufferCopy);
+    auto spirvMemBuffer = MemoryBuffer::getMemBuffer(llvm::StringRef(spirvBuffer, spirvSize));
     std::string errors;
 
     LLVMContext context;
     std::unique_ptr<Module> module;
 
-    if (!readSpirv(context, spirvStream, module, errors)) {
+    if (!readSpirv(context, *spirvMemBuffer, module, errors)) {
         return new ITranslator_Result("", errors.empty() ? "Failed to parse SPIR-V." : errors);
     }
 
