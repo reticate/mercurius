@@ -9,7 +9,9 @@
 
 using namespace llvm;
 
-bool IsValidSpirv(const char *buffer, size_t size) {
+namespace {
+
+bool isSpirvMagicNumberValid(const char *buffer, size_t size) {
     if (buffer == nullptr || size < 4) {
         return false;
     }
@@ -24,13 +26,15 @@ bool IsValidSpirv(const char *buffer, size_t size) {
     return magicNumber == spirvMagicNumber;
 }
 
-extern "C" ITranslator_Result *generateBitcode(const char *spirvBuffer, size_t spirvSize) {
+} 
+
+extern "C" std::unique_ptr<ITranslator_Result> generateBitcode(const char *spirvBuffer, size_t spirvSize) {
     if (!spirvBuffer || spirvSize < 4) {
-        return new ITranslator_Result("", "Invalid input: SPIR-V buffer is null or size is too small.");
+        return std::make_unique<ITranslator_Result>("", "Invalid input: SPIR-V buffer is null or size is too small.");
     }
 
-    if (!IsValidSpirv(spirvBuffer, spirvSize)) {
-        return new ITranslator_Result("", "Invalid SPIR-V buffer: does not match SPIR-V magic number.");
+    if (!isSpirvMagicNumberValid(spirvBuffer, spirvSize)) {
+        return std::make_unique<ITranslator_Result>("", "Invalid SPIR-V buffer: does not match SPIR-V magic number.");
     }
 
     StringRef spirvRef(spirvBuffer, spirvSize);
@@ -40,20 +44,20 @@ extern "C" ITranslator_Result *generateBitcode(const char *spirvBuffer, size_t s
     std::unique_ptr<Module> module;
 
     if (!readSpirv(context, spirvRef, module, errors)) {
-        return new ITranslator_Result("", errorsStream.str().empty() ? "Failed to parse SPIR-V." : errorsStream.str());
+        return std::make_unique<ITranslator_Result>("", errorsStream.str());
     }
 
     if (!module) {
-        return new ITranslator_Result("", "Failed to create LLVM module from SPIR-V.");
+        return std::make_unique<ITranslator_Result>("", "Failed to create LLVM module from SPIR-V.");
     }
 
     std::string bitcode;
     raw_string_ostream bitcodeStream(bitcode);
     bitcodeStream << *module;
-    
+
     if (!bitcode.empty()) {
         bitcodeStream.flush();
     }
 
-    return new ITranslator_Result(std::move(bitcode), std::move(errorsStream.str()));
+    return std::make_unique<ITranslator_Result>(std::move(bitcode), std::move(errorsStream.str()));
 }
