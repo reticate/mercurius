@@ -26,7 +26,7 @@ bool isSpirvMagicNumberValid(const char *buffer, size_t size) {
     return magicNumber == spirvMagicNumber;
 }
 
-} 
+}
 
 extern "C" std::unique_ptr<ITranslator_Result> generateBitcode(const char *spirvBuffer, size_t spirvSize) {
     if (!spirvBuffer || spirvSize < 4) {
